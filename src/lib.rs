@@ -1,3 +1,4 @@
+
 use borsh::{BorshDeserialize,BorshSerialize};
 
 use solana_program::{
@@ -7,39 +8,44 @@ use solana_program::{
     pubkey::Pubkey,
     entrypoint
 };
+
 entrypoint!(counter_contract);
 
-#[derive(BorshSerialize,BorshDeserialize)]
+#[derive(BorshDeserialize,BorshSerialize)]
 enum InstructionType{
     Increment(u32),
     Decrement(u32)
 }
-#[derive(BorshSerialize,BorshDeserialize)]
+
+#[derive(BorshDeserialize,BorshSerialize)]
 struct Counter{
-    count:u32
+    count:(u32)
 }
-
 pub fn counter_contract(
-program_id: &Pubkey,
-accounts: &[AccountInfo],
-instruction_data: &[u8]
-) -> ProgramResult{
+    program_id:&Pubkey,
+    account:&[AccountInfo],
+    instrction_data: &[u8]
+)->ProgramResult{
+    let  acc=next_account_info(&mut account.iter())?;
+    let instruction=InstructionType::try_from_slice(instrction_data).unwrap();
 
-    let acc=next_account_info(&mut accounts.iter())?;
-  
-    let instruction_type=InstructionType::try_from_slice(instruction_data)?;
-    let mut counter_data=Counter::try_from_slice(&acc.data.borrow())?;
-    match instruction_type {
+  let mut count_value = if acc.data_len() == 0 {
+    Counter { count: 0 }
+} else {
+    Counter::try_from_slice(&acc.data.borrow())?
+};
+
+    match instruction {
         InstructionType::Increment(value)=>{
-            counter_data.count+=value;
-            counter_data.serialize(&mut *acc.data.borrow_mut());
-        },
+            count_value.count+=value;
+        }
         InstructionType::Decrement(value)=>{
-            counter_data.count-=value;
-            counter_data.serialize(&mut *acc.data.borrow_mut());
+            count_value.count-=value;
         }
     }
+
+    count_value.serialize(&mut *acc.data.borrow_mut())?;
+    msg!("counter uploaded {}",count_value.count);
     Ok(())
 }
-
 
